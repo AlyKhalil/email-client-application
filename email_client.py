@@ -1,96 +1,122 @@
 import smtplib
+import imaplib
+import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.header import decode_header
 import requests
 import time
-import sys
 
-import random
-import string
-
-# def generate_random_string(length=10):
-#     letters = string.ascii_lowercase
-#     return ''.join(random.choice(letters) for i in range(length))
-
-# def get_temp_email():
-#     url = 'https://api.mail.tm/accounts'
-#     email = f"{generate_random_string()}@mail.tm"
-#     password = generate_random_string(12)
-#     payload = {
-#         "address": email,
-#         "password": password
-#     }
-#     response = requests.post(url, json=payload)
-#     if response.status_code == 201:
-#         return response.json()
-#     else:
-#         print(f"Error: {response.status_code} - {response.text}")
-#         return None
-
-def login_temp_email(address, password):
-    url = 'https://api.mail.tm/token'
-    payload = {'address': address, 'password': password}
-    response = requests.post(url, json=payload)
-    if response.status_code == 200:
-        return response.json()['token']
-    else:
-        print(f"Error: {response.status_code} - {response.text}")
-        return None
-
-def get_mail(token):
-    url = 'https://api.mail.tm/messages'
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Error: {response.status_code} - {response.text}")
-        return None
-
-def send_email(sender_email, password, recipient_email, subject, body):
+def send_email(sender_email, password, recipients, subject, body):
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = recipient_email
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
-    smtp_server = 'smtp.mail.tm'
+    smtp_server = 'smtp.gmail.com'
     port = 587
 
-    try:
-        with smtplib.SMTP(smtp_server, port) as server:
-            server.starttls()
-            server.login(sender_email, password)
-            server.sendmail(sender_email, recipient_email, msg.as_string())
-            print("Email sent successfully")
-    except Exception as e:
-        print(f"Error: {e}")
+    with smtplib.SMTP(smtp_server, port) as server:
+        server.starttls()
 
-def email_listen(token):
-    try:
         while True:
-            mail = get_mail(token)
-            if mail and 'hydra:member' in mail:
-                for msg in mail['hydra:member']:
-                    print(f"From: {msg['from']['address']}")
-                    print(f"Subject: {msg['subject']}")
-                    print(f"Body: {msg.get('text', 'No text body available')}")
-                    print("\n\n")
-            time.sleep(10)  # Increased interval to avoid rate limits
-    except KeyboardInterrupt:
-        print("Stopping email listener...")
-        sys.exit(0)
+            try:
+                server.login(sender_email, password)
+                break
+            except:
+                print("Login failed. Please try again.")
+                print()
+                sender_email = input("Enter your email: ")
+                password = input("Enter your password: ") 
 
-if __name__ == '__main__':
-    temp_email = get_temp_email()
-    if temp_email:
-        print("New Email Address: ", temp_email["address"])
-        print("New Password: ", temp_email['password'])
-        token = login_temp_email(temp_email['address'], temp_email['password'])
-        if token:
-            email_listen(token)
+        for recipient in recipients:
+            msg['To'] = recipient
+            server.sendmail(sender_email, recipient, msg.as_string())
+        print("Email(s) sent successfully.")
 
-        # token = login_temp_email("37literary@indigobook.com", ")`33B?L;n~")
-        # if token:
-        #     print("Logged in successfully")
-        #     email_listen(token)
+def get_mail(email_address, password, last_email_id):
+    try:
+        # Connect to the server
+        imap = imaplib.IMAP4_SSL("imap.gmail.com")
+
+        # Login to the account
+        imap.login(email_address, password)
+
+        # Select the mailbox you want to read from
+        imap.select("inbox")
+
+        # Search for all emails in the mailbox
+        status, messages = imap.search(None, "ALL")
+
+        # Convert messages to a list of email IDs
+        email_ids = messages[0].split()
+
+        # Get the latest email ID
+        latest_email_id = email_ids[-1]
+
+        if latest_email_id != last_email_id:
+            # Fetch the latest email by ID
+            status, msg_data = imap.fetch(latest_email_id, "(RFC822)")
+
+            for response_part in msg_data:
+                if isinstance(response_part, tuple):
+                    # Parse the email content
+                    msg = email.message_from_bytes(response_part[1])
+                    subject, encoding = decode_header(msg["Subject"])[0]
+                    if isinstance(subject, bytes):
+                        # If the subject is encoded, decode it
+                        subject = subject.decode(encoding if encoding else "utf-8")
+                    from_ = msg.get("From")
+                    print("Subject:", subject)
+                    print("From:", from_)
+                    
+                    # If the email message is multipart
+                    if msg.is_multipart():
+                        for part in msg.walk():
+                            # Extract content type of email
+                            content_type = part.get_content_type()
+                            content_disposition = str(part.get("Content-Disposition"))
+
+                            try:
+                                # Get the email body
+                                body = part.get_payload(decode=True).decode()
+                            except:
+                                pass
+                            if content_type == "text/plain" and "attachment" not in content_disposition:
+                                # Print text/plain emails and skip attachments
+                                print("Body:", body)
+                    else:
+                        # Extract content type of email
+                        content_type = msg.get_content_type()
+
+                        # Get the email body
+                        body = msg.get_payload(decode=True).decode()
+                        if content_type == "text/plain":
+                            # Print only text email parts
+                            print("Body:", body)
+                    print("="*100)
+
+        # Close the connection and logout
+        imap.close()
+        imap.logout()
+
+        return latest_email_id
+    except imaplib.IMAP4.error as e:
+        print(f"IMAP error: {e}")
+        return last_email_id
+
+def email_listen(email_address, password):
+    # email_address = input("Enter your email: ")
+    # password = input("Enter your password: ")
+    last_email_id = None
+
+    while True:
+        last_email_id = get_mail(email_address, password, last_email_id)
+        time.sleep(10)  # Check for new emails every 60 seconds
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    # send_email("alywalaa@gmail.com", "unkp vsig kfum garb", ["aly.khalil2026@gmail.com"], "Test Email", "This is a test email")
+    email_listen("alywalaa@gmail.com", "unkp vsig kfum garb")
