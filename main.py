@@ -1,12 +1,16 @@
 import tkinter as tk
 import smtplib
 from tkinter import messagebox
+import sending_emails
+import receiving_emails
 
 class GUI:
     def __init__(self):
         self.root = tk.Tk()
         self.show_pass_check_state = tk.IntVar()
         self.login_successful = False
+        self.email = ""
+        self.password = ""
 
     def login(self):
         self.root.title("Login Page")
@@ -43,8 +47,8 @@ class GUI:
             self.pass_entry.config(show="*")
 
     def check_login(self):
-        email = self.email_entry.get()
-        password = self.pass_entry.get()
+        self.email = self.email_entry.get()
+        self.password = self.pass_entry.get()
 
         smtp_server = 'smtp.gmail.com'
         port = 587
@@ -52,7 +56,7 @@ class GUI:
         try:
             server = smtplib.SMTP(smtp_server, port)
             server.starttls()
-            server.login(email, password)
+            server.login(self.email, self.password)
             server.quit()
             messagebox.showinfo("Login Successful", "You have successfully logged in!")
             self.login_successful = True
@@ -70,24 +74,129 @@ class GUI:
 # and responds to those events. When the login fails, the program does not terminate because 
 # it is still waiting for further user input (e.g., the user retyping their credentials and clicking the "Login" button again).
 
+    def compose(self):
+        compose_window = tk.Toplevel(self.root)
+        compose_window.title("Compose Email")
+        compose_window.geometry("500x400")
+
+        # Use a frame for better organization
+        main_frame = tk.Frame(compose_window, padx=10, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # To: Label and Entry
+        to_label = tk.Label(main_frame, text="To:", font=("Arial", 12))
+        to_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        self.to_entry = tk.Entry(main_frame, font=("Arial", 12), width=40)
+        self.to_entry.grid(row=0, column=1, sticky=tk.EW, pady=(0, 10))
+
+        # Subject: Label and Entry
+        subject_label = tk.Label(main_frame, text="Subject:", font=("Arial", 12))
+        subject_label.grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
+        self.subject_entry = tk.Entry(main_frame, font=("Arial", 12), width=40)
+        self.subject_entry.grid(row=1, column=1, sticky=tk.EW, pady=(0, 10))
+
+        # Body: Label and Text Widget
+        body_label = tk.Label(main_frame, text="Body:", font=("Arial", 12))
+        body_label.grid(row=2, column=0, sticky=tk.NW, pady=(0, 10))
+        self.body_text = tk.Text(main_frame, font=("Arial", 12), width=40, height=10)
+        self.body_text.grid(row=2, column=1, sticky=tk.EW, pady=(0, 10))
+
+        # Send Button
+        send_button = tk.Button(main_frame, text="Send", font=("Arial", 12), command=self.send_email)
+        send_button.grid(row=3, column=1, sticky=tk.E, pady=(10, 0))
+
+        # Configure grid column to expand
+        main_frame.columnconfigure(1, weight=1)
+
+    def send_email(self):
+        to = self.to_entry.get()
+        subject = self.subject_entry.get()
+        body = self.body_text.get("1.0", tk.END)
+
+        if not to or not subject or not body.strip():
+            messagebox.showwarning("Incomplete", "Please fill in all fields.")
+            return
+
+        sending_emails.send_email(self.email, self.password, [to], subject, body)
+
+        messagebox.showinfo("Email Sent", "Your email has been sent successfully!")
+        self.to_entry.delete(0, tk.END)
+        self.subject_entry.delete(0, tk.END)
+        self.body_text.delete("1.0", tk.END)
+
+
     def main_page(self):
+        self.root = tk.Tk()
         self.root.title("Main Page")
         self.root.geometry("800x500")
         
+        # Welcome Label
         welcome_label = tk.Label(self.root, text="Welcome to Main Page", font=("Arial", 24))
-        welcome_label.pack()
-        
-        # Add more widgets and functionality here for sending/receiving emails
+        welcome_label.grid(row=0, column=0, columnspan=4, pady=20)  # Centered at the top
 
-        send_but = tk.Button(self.root, text="Send an Email", font=("Arial", 16))
-        send_but.place(x=620, y=20)
-        
+        # Frame for Inbox Label and Refresh Button
+        inbox_frame = tk.Frame(self.root)
+        inbox_frame.grid(row=1, column=0, sticky=tk.W, padx=20, pady=(0, 10))
+
+        # Inbox Label
+        inbox_label = tk.Label(inbox_frame, text="Inbox", font=("Arial", 24))
+        inbox_label.pack(side=tk.LEFT, padx=(0, 10))  # Align to the left with some padding
+
+        # Refresh Button
+        refresh_button = tk.Button(inbox_frame, text="Refresh", font=("Arial", 12), command=self.refresh_inbox)
+        refresh_button.pack(side=tk.LEFT)  # Place next to the Inbox label
+
+        # Compose Button
+        send_but = tk.Button(self.root, text="Compose", font=("Arial", 16), command=self.compose)
+        send_but.grid(row=0, column=3, sticky=tk.E, padx=10, pady=10)  # Top-right corner
+
+        # Frame for displaying emails
+        email_frame = tk.Frame(self.root, padx=10, pady=10)
+        email_frame.grid(row=2, column=0, columnspan=4, sticky=tk.NSEW)  # Expand to fill space
+
+        # Listbox to display emails
+        self.email_listbox = tk.Listbox(email_frame, font=("Arial", 12), selectmode=tk.SINGLE)
+        self.email_listbox.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbar for the Listbox
+        scrollbar = tk.Scrollbar(email_frame, orient=tk.VERTICAL, command=self.email_listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.email_listbox.config(yscrollcommand=scrollbar.set)
+
+        # Configure grid weights for resizing
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(2, weight=1)
+
+        # # Example: Add some dummy emails to the Listbox
+        # self.populate_inbox()
+
+        content = receiving_emails.get_mail(self.email, self.password)
+        self.populate_inbox(content)
         self.root.mainloop()
+
+    def populate_inbox(self, content):
+        # Example: Add some dummy emails to the Listbox
+        # dummy_emails = [
+        #     "Subject: Welcome to the App - From: support@example.com",
+        #     "Subject: Your Order Confirmation - From: orders@example.com",
+        #     "Subject: Meeting Reminder - From: calendar@example.com",
+        #     "Subject: Newsletter - From: news@example.com",
+        # ]
+        for part in content:
+            self.email_listbox.insert(tk.END, part)
+
+    def refresh_inbox(self):
+        # Clear the current emails in the Listbox
+        self.email_listbox.delete(0, tk.END)
+
+        content = receiving_emails.get_mail(self.email, self.password)
+        self.populate_inbox(content)
+
 
 def main():
     gui = GUI()
     gui.login()
-    gui.main_page()
+    #gui.main_page()
 
 if __name__ == "__main__":
     main()

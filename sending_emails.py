@@ -16,23 +16,14 @@ def send_email(sender_email, password, recipients, subject, body):
     smtp_server = 'smtp.gmail.com'
     port = 587
 
-    server = smtp_server.smtplib.SMTP(smtp_server, port)
+    server = smtplib.SMTP(smtp_server, port)
     server.starttls()
 
-    while True:
-        try:
-            server.login(sender_email, password)
-            break
-        except:
-            print("Login failed. Please try again.")
-            print()
-            sender_email = input("Enter your email: ")
-            password = input("Enter your password: ") 
+    server.login(sender_email, password)
 
     for recipient in recipients:
         msg['To'] = recipient
         server.sendmail(sender_email, recipient, msg.as_string())
-    print("Email(s) sent successfully.")
 
     server.close()
 

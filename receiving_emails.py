@@ -3,7 +3,8 @@ import email
 from email.header import decode_header
 import time
 
-def get_mail(email_address, password, last_email_id):
+def get_mail(email_address, password):
+    content = []
     try:
         # Connect to the server
         imap = imaplib.IMAP4_SSL("imap.gmail.com")
@@ -23,68 +24,71 @@ def get_mail(email_address, password, last_email_id):
         # Get the latest email ID
         latest_email_id = email_ids[-1]
 
-        if latest_email_id != last_email_id:
-            # Fetch the latest email by ID
-            status, msg_data = imap.fetch(latest_email_id, "(RFC822)")
+        # Fetch the latest email by ID
+        status, msg_data = imap.fetch(latest_email_id, "(RFC822)")
 
-            for response_part in msg_data:
-                if isinstance(response_part, tuple):
-                    # Parse the email content
-                    msg = email.message_from_bytes(response_part[1])
-                    subject, encoding = decode_header(msg["Subject"])[0]
-                    if isinstance(subject, bytes):
-                        # If the subject is encoded, decode it
-                        subject = subject.decode(encoding if encoding else "utf-8")
-                    from_ = msg.get("From")
-                    print("Subject:", subject)
-                    print("From:", from_)
-                    
-                    # If the email message is multipart
-                    if msg.is_multipart():
-                        for part in msg.walk():
-                            # Extract content type of email
-                            content_type = part.get_content_type()
-                            content_disposition = str(part.get("Content-Disposition"))
+        for response_part in msg_data:
+            if isinstance(response_part, tuple):
+                # Parse the email content
+                msg = email.message_from_bytes(response_part[1])
+                subject, encoding = decode_header(msg["Subject"])[0]
+                if isinstance(subject, bytes):
+                    # If the subject is encoded, decode it
+                    subject = subject.decode(encoding if encoding else "utf-8")
+                from_ = msg.get("From")
 
-                            try:
-                                # Get the email body
-                                body = part.get_payload(decode=True).decode()
-                            except:
-                                pass
-                            if content_type == "text/plain" and "attachment" not in content_disposition:
-                                # Print text/plain emails and skip attachments
-                                print("Body:", body)
-                    else:
+                content += [from_, subject]
+
+                print("Subject:", subject)
+                print("From:", from_)
+                
+                # If the email message is multipart
+                if msg.is_multipart():
+                    for part in msg.walk():
                         # Extract content type of email
-                        content_type = msg.get_content_type()
+                        content_type = part.get_content_type()
+                        content_disposition = str(part.get("Content-Disposition"))
 
-                        # Get the email body
-                        body = msg.get_payload(decode=True).decode()
-                        if content_type == "text/plain":
-                            # Print only text email parts
+                        try:
+                            # Get the email body
+                            body = part.get_payload(decode=True).decode()
+                        except:
+                            pass
+                        if content_type == "text/plain" and "attachment" not in content_disposition:
+                            # Print text/plain emails and skip attachments
+                            content += [body]
                             print("Body:", body)
-                    print("="*100)
+                else:
+                    # Extract content type of email
+                    content_type = msg.get_content_type()
+
+                    # Get the email body
+                    body = msg.get_payload(decode=True).decode()
+                    if content_type == "text/plain":
+                        # Print only text email parts
+                        print("Body:", body)
+                print("="*100)
 
         # Close the connection and logout
         imap.close()
         imap.logout()
 
-        return latest_email_id
+        return content
     except imaplib.IMAP4.error as e:
         print(f"IMAP error: {e}")
-        return last_email_id
+        return content
 
-def email_listen(email_address, password):
-    # email_address = input("Enter your email: ")
-    # password = input("Enter your password: ")
-    last_email_id = None
+# def email_listen(email_address, password):
+#     # email_address = input("Enter your email: ")
+#     # password = input("Enter your password: ")
+#     last_email_id = None
 
-    while True:
-        last_email_id = get_mail(email_address, password, last_email_id)
-        time.sleep(10)  # Check for new emails every 60 seconds
+#     while True:
+#         last_email_id = get_mail(email_address, password, last_email_id)
+#         time.sleep(10)  # Check for new emails every 60 seconds
 
 def main():
     pass
 
 if __name__ == "__main__":
-    email_listen("alywalaa@gmail.com", "unkp vsig kfum garb")
+    get_mail("alywalaa@gmail.com", "unkp vsig kfum garb")
