@@ -102,13 +102,14 @@ class GUI:
         self.body_text.grid(row=2, column=1, sticky=tk.EW, pady=(0, 10))
 
         # Send Button
-        send_button = tk.Button(main_frame, text="Send", font=("Arial", 12), command=self.send_email)
+        send_button = tk.Button(main_frame, text="Send", font=("Arial", 12), command=lambda:self.send_email(compose_window))
         send_button.grid(row=3, column=1, sticky=tk.E, pady=(10, 0))
 
         # Configure grid column to expand
         main_frame.columnconfigure(1, weight=1)
+        
 
-    def send_email(self):
+    def send_email(self, compose_window):
         to = self.to_entry.get()
         subject = self.subject_entry.get()
         body = self.body_text.get("1.0", tk.END)
@@ -123,6 +124,7 @@ class GUI:
         self.to_entry.delete(0, tk.END)
         self.subject_entry.delete(0, tk.END)
         self.body_text.delete("1.0", tk.END)
+        compose_window.destroy() #closes the compose window after checking
 
 
     def main_page(self):
@@ -167,23 +169,19 @@ class GUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(2, weight=1)
 
-        # # Example: Add some dummy emails to the Listbox
-        # self.populate_inbox()
-
         content = receiving_emails.get_mail(self.email, self.password)
-        self.populate_inbox(content)
+        if content == []:
+            self.email_listbox.insert(tk.END, f"    Inbox is Empty")
+        else:
+            self.populate_inbox(content)
+        
         self.root.mainloop()
 
     def populate_inbox(self, content):
-        # Example: Add some dummy emails to the Listbox
-        # dummy_emails = [
-        #     "Subject: Welcome to the App - From: support@example.com",
-        #     "Subject: Your Order Confirmation - From: orders@example.com",
-        #     "Subject: Meeting Reminder - From: calendar@example.com",
-        #     "Subject: Newsletter - From: news@example.com",
-        # ]
-        for part in content:
-            self.email_listbox.insert(tk.END, part)
+        self.email_listbox.insert(tk.END, f"From: {content[0]}")
+        self.email_listbox.insert(tk.END, f"Subject: {content[1]}") 
+        self.email_listbox.insert(tk.END, f"Body: ")
+        self.email_listbox.insert(tk.END, content[2])
 
     def refresh_inbox(self):
         # Clear the current emails in the Listbox
@@ -191,12 +189,9 @@ class GUI:
 
         content = receiving_emails.get_mail(self.email, self.password)
         self.populate_inbox(content)
-
-
-def main():
-    gui = GUI()
-    gui.login()
-    #gui.main_page()
+    
 
 if __name__ == "__main__":
-    main()
+    gui = GUI()
+    # gui.login()
+    gui.main_page()

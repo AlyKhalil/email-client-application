@@ -28,9 +28,7 @@ def send_email(sender_email, password, recipients, subject, body):
     server.close()
 
 
-def main():
-    pass
-
 if __name__ == "__main__":
-    send_email("alywalaa@gmail.com", "unkp vsig kfum garb", ["aly.khalil2026@gmail.com"], "Test Email", "This is a test email")
+    # send_email("alywalaa@gmail.com", "unkp vsig kfum garb", ["aly.khalil2026@gmail.com"], "Test Email", "This is a test email")
+    pass
     

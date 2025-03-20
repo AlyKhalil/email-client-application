@@ -39,8 +39,8 @@ def get_mail(email_address, password):
 
                 content += [from_, subject]
 
-                print("Subject:", subject)
-                print("From:", from_)
+                # print("Subject:", subject)
+                # print("From:", from_)
                 
                 # If the email message is multipart
                 if msg.is_multipart():
@@ -57,17 +57,18 @@ def get_mail(email_address, password):
                         if content_type == "text/plain" and "attachment" not in content_disposition:
                             # Print text/plain emails and skip attachments
                             content += [body]
-                            print("Body:", body)
+                            # print("Body:", body)
                 else:
                     # Extract content type of email
                     content_type = msg.get_content_type()
 
                     # Get the email body
                     body = msg.get_payload(decode=True).decode()
-                    if content_type == "text/plain":
-                        # Print only text email parts
-                        print("Body:", body)
-                print("="*100)
+                    # if content_type == "text/plain":
+                    #     # Print only text email parts
+                    #     print("Body:", body)
+                    content += [body]
+                # print("="*100)
 
         # Close the connection and logout
         imap.close()
@@ -78,17 +79,7 @@ def get_mail(email_address, password):
         print(f"IMAP error: {e}")
         return content
 
-# def email_listen(email_address, password):
-#     # email_address = input("Enter your email: ")
-#     # password = input("Enter your password: ")
-#     last_email_id = None
-
-#     while True:
-#         last_email_id = get_mail(email_address, password, last_email_id)
-#         time.sleep(10)  # Check for new emails every 60 seconds
-
-def main():
-    pass
 
 if __name__ == "__main__":
-    get_mail("alywalaa@gmail.com", "unkp vsig kfum garb")
+    # get_mail("alywalaa@gmail.com", "unkp vsig kfum garb")
+    pass
