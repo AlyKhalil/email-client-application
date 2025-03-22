@@ -5,17 +5,19 @@ import sending_emails
 import receiving_emails
 from plyer import notification
 import threading
+import time
 
 class GUI:
     def __init__(self):
         self.root = tk.Tk()
         self.show_pass_check_state = tk.IntVar()
-        self.login_successful = False
-        self.email = "" + "@gmail.com"
+        self.email = ""
         self.password = ""
-        self.last_email_id = None
+        self.email_receiver = None
 
-    def login(self):
+#=======================================================================================================================================================================
+# Login Page    
+    def login_page(self):
         self.root.title("Login Page")
         self.root.geometry("300x350")
         
@@ -30,8 +32,10 @@ class GUI:
 
         self.email_entry = tk.Entry(login_frame, font=("Arial", 16), width=12)
         self.email_entry.grid(row=1, column=0, pady=(0, 10))
-        self.email_entry.focus_set()
-        self.email_entry.bind("<Return>", lambda event: self.pass_entry.focus_set())
+        self.email_entry.focus_set() # Focus the cursor on the email entry when the window opens
+        self.email_entry.bind("<Return>", lambda event: self.pass_entry.focus_set()) #<Return> is the event of the Enter key
+
+        # The lambda function is used to pass the event to the next widget, so that the user can press Enter to move to the next widget
 
         gmail_label = tk.Label(login_frame, text="@gmail.com", font=("Arial", 12))
         gmail_label.grid(row=1, column=1, sticky=tk.N, pady=(0, 10))
@@ -48,94 +52,48 @@ class GUI:
 
         login_but = tk.Button(login_frame, text="Login", font=("Arial", 16), command=self.check_login)
         login_but.grid(row=5, column=0, columnspan=2, pady=20)
-        
+
         self.root.mainloop()
-    
+
     def toggle_show_pass(self):
         if self.show_pass_check_state.get() == 1:
-            self.pass_entry.config(show="")
+            self.pass_entry.config(show="") # Shows the actual password
         else:
-            self.pass_entry.config(show="*")
+            self.pass_entry.config(show="*") # Hides the password with "*"
 
     def check_login(self):
-        self.email = self.email_entry.get()
-        self.password = self.pass_entry.get()
+            self.email = self.email_entry.get() + "@gmail.com"
+            self.password = self.pass_entry.get()
 
-        smtp_server = 'smtp.gmail.com'
-        port = 587
+            smtp_server = 'smtp.gmail.com' # smtp server for gmail
+            port = 587 # port for gmail
 
-        try:
-            server = smtplib.SMTP(smtp_server, port)
-            server.starttls()
-            server.login(self.email, self.password)
-            server.quit()
-            messagebox.showinfo("Login Successful", "You have successfully logged in!")
-            self.login_successful = True
-            self.root.destroy()  # Close the login window
-            self.main_page()  # Open the main page
-        except smtplib.SMTPAuthenticationError:
-            messagebox.showerror("Login Failed", "Invalid email or password. Please try again.")
-            self.email_entry.delete(0, tk.END)
-            self.pass_entry.delete(0, tk.END)
-            self.email_entry.focus_set()
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
+            try:
+                server = smtplib.SMTP(smtp_server, port)
+                server.starttls()
+                server.login(self.email, self.password)
+                server.quit() # Close the connection as we only needed to check credentials
+                messagebox.showinfo("Login Successful", "You have successfully logged in!")
+                self.root.destroy()  # Close the login window
+                self.main_page()  # Open the main page
+            except smtplib.SMTPAuthenticationError:
+                messagebox.showerror("Login Failed", "Invalid email or password. Please try again.")
+                self.email_entry.delete(0, tk.END) # Clears the entries
+                self.pass_entry.delete(0, tk.END)
+                self.email_entry.focus_set() # Focus the cursor on the email entry, and waits for the user to enter the email again
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred: {e}")
 
-    def compose(self):
-        compose_window = tk.Toplevel(self.root)
-        compose_window.title("Compose Email")
-        compose_window.geometry("500x400")
+# tkinter is event driven, so it waits for user inputs on gui elements to do something
 
-        # Use a frame for better organization
-        main_frame = tk.Frame(compose_window, padx=10, pady=10)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # To: Label and Entry
-        to_label = tk.Label(main_frame, text="To:", font=("Arial", 12))
-        to_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
-        self.to_entry = tk.Entry(main_frame, font=("Arial", 12), width=40)
-        self.to_entry.grid(row=0, column=1, sticky=tk.EW, pady=(0, 10))
-
-        # Subject: Label and Entry
-        subject_label = tk.Label(main_frame, text="Subject:", font=("Arial", 12))
-        subject_label.grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
-        self.subject_entry = tk.Entry(main_frame, font=("Arial", 12), width=40)
-        self.subject_entry.grid(row=1, column=1, sticky=tk.EW, pady=(0, 10))
-
-        # Body: Label and Text Widget
-        body_label = tk.Label(main_frame, text="Body:", font=("Arial", 12))
-        body_label.grid(row=2, column=0, sticky=tk.NW, pady=(0, 10))
-        self.body_text = tk.Text(main_frame, font=("Arial", 12), width=40, height=10)
-        self.body_text.grid(row=2, column=1, sticky=tk.EW, pady=(0, 10))
-
-        # Send Button
-        send_button = tk.Button(main_frame, text="Send", font=("Arial", 12), command=lambda:self.send_email(compose_window))
-        send_button.grid(row=3, column=1, sticky=tk.E, pady=(10, 0))
-
-        # Configure grid column to expand
-        main_frame.columnconfigure(1, weight=1)
-        
-    def send_email(self, compose_window):
-        to = self.to_entry.get()
-        subject = self.subject_entry.get()
-        body = self.body_text.get("1.0", tk.END)
-
-        if not to or not subject or not body.strip():
-            messagebox.showwarning("Incomplete", "Please fill in all fields.")
-            return
-
-        sending_emails.send_email(self.email, self.password, [to], subject, body)
-
-        messagebox.showinfo("Email Sent", "Your email has been sent successfully!")
-        self.to_entry.delete(0, tk.END)
-        self.subject_entry.delete(0, tk.END)
-        self.body_text.delete("1.0", tk.END)
-        compose_window.destroy() #closes the compose window after checking
-
+#=======================================================================================================================================================================
+# Main Page
     def main_page(self): 
         self.root = tk.Tk()
         self.root.title("Main Page")
         self.root.geometry("800x500")
+
+        print(self.email, self.password)
         
         welcome_label = tk.Label(self.root, text="Main Page", font=("Arial", 24))
         welcome_label.grid(row=0, column=0, columnspan=4, pady=20)  # Centered at the top
@@ -144,21 +102,17 @@ class GUI:
         inbox_frame = tk.Frame(self.root)
         inbox_frame.grid(row=1, column=0, sticky=tk.W, padx=20, pady=(0, 10))
 
-        # Inbox Label
         inbox_label = tk.Label(inbox_frame, text="Inbox", font=("Arial", 24))
         inbox_label.pack(side=tk.LEFT, padx=(0, 10))  # Align to the left with some padding
 
-        # Refresh Button
         refresh_button = tk.Button(inbox_frame, text="Refresh", font=("Arial", 12), command=self.refresh_inbox)
         refresh_button.pack(side=tk.LEFT)  # Place next to the Inbox label
 
-        # Compose Button
         send_but = tk.Button(self.root, text="Compose", font=("Arial", 16), command=self.compose)
         send_but.grid(row=0, column=3, sticky=tk.E, padx=10, pady=10)  # Top-right corner
 
-        # Log Out Button
-        send_but = tk.Button(self.root, text="Log Out", font=("Arial", 16), command=self.logout)
-        send_but.grid(row=0, column=0, sticky=tk.W, padx=10, pady=10)  # Top-left corner
+        logout_but = tk.Button(self.root, text="Log Out", font=("Arial", 16), command=self.logout)
+        logout_but.grid(row=0, column=0, sticky=tk.W, padx=10, pady=10)  # Top-left corner
 
         # Frame for displaying emails
         email_frame = tk.Frame(self.root, padx=10, pady=10)
@@ -177,49 +131,120 @@ class GUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(2, weight=1)
 
-        content = receiving_emails.get_mail(self.email, self.password)
+        # Create an object of the email receiver class
+        self.email_receiver = receiving_emails.email_receiver(self.email, self.password)
+
+        content = self.email_receiver.get_mail()
+        
         if content == []:
             self.email_text.insert(tk.END, "Inbox is Empty")
         else:
             self.populate_inbox(content)
         
-        # Start the email check thread
-        # self.check_new_emails()
+        # call the email check fn for notifications
+        self.check_new_emails()
 
         self.root.mainloop()
-    
+
+#=======================================================================================================================================================================
+# Compose Email
+    def compose(self):
+        compose_window = tk.Toplevel(self.root)
+        compose_window.title("Compose Email")
+        compose_window.geometry("500x400")
+
+        main_frame = tk.Frame(compose_window, padx=10, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        to_label = tk.Label(main_frame, text="To:", font=("Arial", 12))
+        to_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        self.to_entry = tk.Entry(main_frame, font=("Arial", 12), width=40)
+        self.to_entry.grid(row=0, column=1, sticky=tk.EW, pady=(0, 10))
+        self.to_entry.focus_set()
+        self.to_entry.bind("<Return>", lambda event: self.subject_entry.focus_set())
+
+        subject_label = tk.Label(main_frame, text="Subject:", font=("Arial", 12))
+        subject_label.grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
+        self.subject_entry = tk.Entry(main_frame, font=("Arial", 12), width=40)
+        self.subject_entry.grid(row=1, column=1, sticky=tk.EW, pady=(0, 10))
+        self.subject_entry.bind("<Return>", lambda event: self.body_text.focus_set())
+
+        body_label = tk.Label(main_frame, text="Body:", font=("Arial", 12))
+        body_label.grid(row=2, column=0, sticky=tk.NW, pady=(0, 10))
+        self.body_text = tk.Text(main_frame, font=("Arial", 12), width=40, height=10)
+        self.body_text.grid(row=2, column=1, sticky=tk.EW, pady=(0, 10))
+        
+        # Send Button
+        send_button = tk.Button(main_frame, text="Send", font=("Arial", 12), command=lambda:self.send_email(compose_window))
+        send_button.grid(row=3, column=1, sticky=tk.E, pady=(10, 0))
+
+        # Configure grid column to expand
+        main_frame.columnconfigure(1, weight=1)
+            
+    def send_email(self, compose_window):
+        to = self.to_entry.get()
+        subject = self.subject_entry.get()
+        body = self.body_text.get("1.0", tk.END)
+
+        if not to or not subject or not body.strip():
+            messagebox.showwarning("Incomplete", "Please fill in all fields.")
+            return
+
+        sending_emails.send_email(self.email, self.password, [to], subject, body)
+
+        messagebox.showinfo("Email Sent", "Your email has been sent successfully!")
+        self.to_entry.delete(0, tk.END)
+        self.subject_entry.delete(0, tk.END)
+        self.body_text.delete("1.0", tk.END)
+        compose_window.destroy() #closes the compose window after checking
+
+#=======================================================================================================================================================================
+# Inbox
     def populate_inbox(self, content):
-        self.email_text.insert(tk.END, f"From:  {content[0]}\n")
-        self.email_text.insert(tk.END, f"Subject:   {content[1]}\n")
-        self.email_text.insert(tk.END, f"Body:\n{content[2]}\n")
-    
+            self.email_text.delete("1.0", tk.END)
+            self.email_text.insert(tk.END, f"From:  {content[0]}\n")
+            self.email_text.insert(tk.END, f"Subject:   {content[1]}\n")
+            self.email_text.insert(tk.END, f"Body:\n{content[2]}\n")
+        
     def refresh_inbox(self):
         # Clear the current emails in the Text widget
         self.email_text.delete(1.0, tk.END)
 
-        content = receiving_emails.get_mail(self.email, self.password)
-        self.populate_inbox(content)
-    
+        content = self.email_receiver.get_mail()
+        if content == []:
+            self.email_text.insert(tk.END, "Inbox is Empty")
+        else:
+            self.populate_inbox(content)
+
+#=======================================================================================================================================================================
+# Notification
+    def check_new_emails(self):
+        def check():
+            while True:
+                content = self.email_receiver.get_mail()
+                if self.email_receiver.is_new:
+                    notification.notify(
+                            title="New Email",
+                            message=f"From: {content[0]}\nSubject: {content[1]}",
+                            timeout=10
+                    )
+                time.sleep(10)  # Check every 10 seconds
+
+        threading.Thread(target=check, daemon=True).start() # Daemon threads donnot stop the main thread from exiting
+
+#=======================================================================================================================================================================
+# Logout
     def logout(self):
         self.root.destroy()
+        self.email_receiver = None
+        self.email = ""
+        self.password = ""
         self.root = tk.Tk()
-        self.login()
-    
-    # def check_new_emails(self):
-    #     def check():
-    #         while True:
-    #             content = receiving_emails.get_mail(self.email, self.password)
-    #             if content and (self.last_email_id is None or content[0] != self.last_email_id):
-    #                 self.last_email_id = content[0]
-    #                 notification.notify(
-    #                     title="New Email",
-    #                     message=f"From: {content[0]}\nSubject: {content[1]}",
-    #                     timeout=10
-    #                 )
-    #             self.root.after(60000, check)  # Check every 60 seconds
+        self.show_pass_check_state = tk.IntVar()
+        self.login_page()
 
-    #     threading.Thread(target=check, daemon=True).start()
+#=======================================================================================================================================================================
 
 if __name__ == "__main__":
     gui = GUI()
-    gui.login()
+    gui.login_page()

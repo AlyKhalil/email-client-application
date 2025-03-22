@@ -13,16 +13,16 @@ def send_email(sender_email, password, recipients, subject, body):
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
-    smtp_server = 'smtp.gmail.com'
-    port = 587
+    smtp_server = 'smtp.gmail.com' # smtp server for gmail
+    port = 587 # port for gmail
 
-    server = smtplib.SMTP(smtp_server, port)
-    server.starttls()
+    server = smtplib.SMTP(smtp_server, port) # create an smtp server object
+    server.starttls() # start ttls connection
 
     server.login(sender_email, password)
 
     for recipient in recipients:
         msg['To'] = recipient
-        server.sendmail(sender_email, recipient, msg.as_string())
+        server.sendmail(sender_email, recipient, msg.as_string()) # msg.as_string() converts the message from a dictionary to a string
 
     server.close()
