@@ -78,8 +78,3 @@ def get_mail(email_address, password):
     except imaplib.IMAP4.error as e:
         print(f"IMAP error: {e}")
         return content
-
-
-if __name__ == "__main__":
-    # get_mail("alywalaa@gmail.com", "unkp vsig kfum garb")
-    pass

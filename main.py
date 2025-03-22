@@ -3,14 +3,17 @@ import smtplib
 from tkinter import messagebox
 import sending_emails
 import receiving_emails
+from plyer import notification
+import threading
 
 class GUI:
     def __init__(self):
         self.root = tk.Tk()
         self.show_pass_check_state = tk.IntVar()
         self.login_successful = False
-        self.email = ""
+        self.email = "" + "@gmail.com"
         self.password = ""
+        self.last_email_id = None
 
     def login(self):
         self.root.title("Login Page")
@@ -18,28 +21,36 @@ class GUI:
         
         self.Label = tk.Label(self.root, text="Login Page", font=("Arial", 24))
         self.Label.pack(pady=20)
-        
-        self.email_label = tk.Label(self.root, text="Email:", font=("Arial", 16))
-        self.email_label.pack(pady=10)
 
-        self.email_entry = tk.Entry(self.root, font=("Arial", 16))
-        self.email_entry.pack() 
+        login_frame = tk.Frame(self.root, padx=10, pady=10)
+        login_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.email_label = tk.Label(login_frame, text="Email:", font=("Arial", 16))
+        self.email_label.grid(row=0, column=0, columnspan=2, sticky=tk.N, pady=(0, 10))
+
+        self.email_entry = tk.Entry(login_frame, font=("Arial", 16), width=12)
+        self.email_entry.grid(row=1, column=0, pady=(0, 10))
         self.email_entry.focus_set()
+        self.email_entry.bind("<Return>", lambda event: self.pass_entry.focus_set())
 
-        self.pass_label = tk.Label(self.root, text="Password:", font=("Arial", 16))
-        self.pass_label.pack(pady=10)
+        gmail_label = tk.Label(login_frame, text="@gmail.com", font=("Arial", 12))
+        gmail_label.grid(row=1, column=1, sticky=tk.N, pady=(0, 10))
 
-        self.pass_entry = tk.Entry(self.root, font=("Arial", 16), show="*")
-        self.pass_entry.pack()
+        self.pass_label = tk.Label(login_frame, text="App Password:", font=("Arial", 16), width=14)
+        self.pass_label.grid(row=2, column=0, columnspan=2, pady=(0, 10))
 
-        self.show_pass_check = tk.Checkbutton(self.root, text="Show password", font=("Arial", 8), variable=self.show_pass_check_state, command=self.toggle_show_pass)
-        self.show_pass_check.pack()
+        self.pass_entry = tk.Entry(login_frame, font=("Arial", 16), show="*")
+        self.pass_entry.grid(row=3, column=0, columnspan=2, pady=(0, 10))
+        self.pass_entry.bind("<Return>", lambda event: self.check_login())
 
-        login_but = tk.Button(self.root, text="Login", font=("Arial", 16), command=self.check_login)
-        login_but.pack(pady=20)
+        self.show_pass_check = tk.Checkbutton(login_frame, text="Show password", font=("Arial", 8), variable=self.show_pass_check_state, command=self.toggle_show_pass)
+        self.show_pass_check.grid(row=4, column=0, columnspan=2, pady=(0, 10))
+
+        login_but = tk.Button(login_frame, text="Login", font=("Arial", 16), command=self.check_login)
+        login_but.grid(row=5, column=0, columnspan=2, pady=20)
         
         self.root.mainloop()
-
+    
     def toggle_show_pass(self):
         if self.show_pass_check_state.get() == 1:
             self.pass_entry.config(show="")
@@ -69,10 +80,6 @@ class GUI:
             self.email_entry.focus_set()
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
-
-#tkinter is an event-driven GUI framework. This means the program waits for user interaction (e.g., clicking a button, typing in a field)
-# and responds to those events. When the login fails, the program does not terminate because 
-# it is still waiting for further user input (e.g., the user retyping their credentials and clicking the "Login" button again).
 
     def compose(self):
         compose_window = tk.Toplevel(self.root)
@@ -108,7 +115,6 @@ class GUI:
         # Configure grid column to expand
         main_frame.columnconfigure(1, weight=1)
         
-
     def send_email(self, compose_window):
         to = self.to_entry.get()
         subject = self.subject_entry.get()
@@ -126,14 +132,12 @@ class GUI:
         self.body_text.delete("1.0", tk.END)
         compose_window.destroy() #closes the compose window after checking
 
-
-    def main_page(self):
+    def main_page(self): 
         self.root = tk.Tk()
         self.root.title("Main Page")
         self.root.geometry("800x500")
         
-        # Welcome Label
-        welcome_label = tk.Label(self.root, text="Welcome to Main Page", font=("Arial", 24))
+        welcome_label = tk.Label(self.root, text="Main Page", font=("Arial", 24))
         welcome_label.grid(row=0, column=0, columnspan=4, pady=20)  # Centered at the top
 
         # Frame for Inbox Label and Refresh Button
@@ -152,18 +156,22 @@ class GUI:
         send_but = tk.Button(self.root, text="Compose", font=("Arial", 16), command=self.compose)
         send_but.grid(row=0, column=3, sticky=tk.E, padx=10, pady=10)  # Top-right corner
 
+        # Log Out Button
+        send_but = tk.Button(self.root, text="Log Out", font=("Arial", 16), command=self.logout)
+        send_but.grid(row=0, column=0, sticky=tk.W, padx=10, pady=10)  # Top-left corner
+
         # Frame for displaying emails
         email_frame = tk.Frame(self.root, padx=10, pady=10)
         email_frame.grid(row=2, column=0, columnspan=4, sticky=tk.NSEW)  # Expand to fill space
 
-        # Listbox to display emails
-        self.email_listbox = tk.Listbox(email_frame, font=("Arial", 12), selectmode=tk.SINGLE)
-        self.email_listbox.pack(fill=tk.BOTH, expand=True)
+        # Text widget to display emails
+        self.email_text = tk.Text(email_frame, font=("Arial", 12), wrap=tk.WORD)
+        self.email_text.pack(fill=tk.BOTH, expand=True)
 
-        # Scrollbar for the Listbox
-        scrollbar = tk.Scrollbar(email_frame, orient=tk.VERTICAL, command=self.email_listbox.yview)
+        # Scrollbar for the Text widget
+        scrollbar = tk.Scrollbar(email_frame, orient=tk.VERTICAL, command=self.email_text.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.email_listbox.config(yscrollcommand=scrollbar.set)
+        self.email_text.config(yscrollcommand=scrollbar.set)
 
         # Configure grid weights for resizing
         self.root.columnconfigure(0, weight=1)
@@ -171,27 +179,47 @@ class GUI:
 
         content = receiving_emails.get_mail(self.email, self.password)
         if content == []:
-            self.email_listbox.insert(tk.END, f"    Inbox is Empty")
+            self.email_text.insert(tk.END, "Inbox is Empty")
         else:
             self.populate_inbox(content)
         
+        # Start the email check thread
+        # self.check_new_emails()
+
         self.root.mainloop()
-
+    
     def populate_inbox(self, content):
-        self.email_listbox.insert(tk.END, f"From: {content[0]}")
-        self.email_listbox.insert(tk.END, f"Subject: {content[1]}") 
-        self.email_listbox.insert(tk.END, f"Body: ")
-        self.email_listbox.insert(tk.END, content[2])
-
+        self.email_text.insert(tk.END, f"From:  {content[0]}\n")
+        self.email_text.insert(tk.END, f"Subject:   {content[1]}\n")
+        self.email_text.insert(tk.END, f"Body:\n{content[2]}\n")
+    
     def refresh_inbox(self):
-        # Clear the current emails in the Listbox
-        self.email_listbox.delete(0, tk.END)
+        # Clear the current emails in the Text widget
+        self.email_text.delete(1.0, tk.END)
 
         content = receiving_emails.get_mail(self.email, self.password)
         self.populate_inbox(content)
     
+    def logout(self):
+        self.root.destroy()
+        self.root = tk.Tk()
+        self.login()
+    
+    # def check_new_emails(self):
+    #     def check():
+    #         while True:
+    #             content = receiving_emails.get_mail(self.email, self.password)
+    #             if content and (self.last_email_id is None or content[0] != self.last_email_id):
+    #                 self.last_email_id = content[0]
+    #                 notification.notify(
+    #                     title="New Email",
+    #                     message=f"From: {content[0]}\nSubject: {content[1]}",
+    #                     timeout=10
+    #                 )
+    #             self.root.after(60000, check)  # Check every 60 seconds
+
+    #     threading.Thread(target=check, daemon=True).start()
 
 if __name__ == "__main__":
     gui = GUI()
-    # gui.login()
-    gui.main_page()
+    gui.login()
